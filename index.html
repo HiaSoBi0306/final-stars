@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#050817">
-<title>FINAL STARS - HEX STAGE SELECT v1.5.1</title>
-<meta name="application-version" content="1.5.1">
+<title>FINAL STARS - HEX STAGE SELECT v1.5.2</title>
+<meta name="application-version" content="1.5.2">
 <style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#030611;color:#eaf6ff;font-family:system-ui,-apple-system,sans-serif;touch-action:none;user-select:none}
 #game{display:block;width:100vw;height:100dvh;touch-action:none}
@@ -65,7 +65,7 @@
 <canvas id="game"></canvas>
 <div id="hud"><div>SCORE <span id="score">000000</span><br><span id="lives">♥ ♥ ♥</span><br><span id="power">POWER Lv.1</span><br><span id="bombCount">BOMB ×1</span><br><span id="coinCount">⭐ 000000 ST</span><br><span id="stageLabel">ROUND 1 / 3 · STAGE 1 / 7</span></div><div>FINAL STARS<br>ARCADE BATTLE</div></div>
 <div id="bossUI"><div id="bossName">DREADNOUGHT CLASS / MAIN CORE</div><div id="bossTrack"><div id="bossFill"></div></div></div>
-<button id="sound">♪ SOUND ON</button><button id="autoDodge">AUTO DODGE ON</button><div id="versionBadge">FINAL STARS v1.5.1</div>
+<button id="sound">♪ SOUND ON</button><button id="autoDodge">AUTO DODGE ON</button><div id="versionBadge">FINAL STARS v1.5.2</div>
 <div id="message">FINAL STARS</div><button id="nextStageBtn" type="button">NEXT STAGE ▶</button>
 <div id="pad" aria-label="十字ボタン">
 <button class="dir" id="up" data-dir="up">▲</button><button class="dir" id="left" data-dir="left">◀</button><button class="dir" id="center">MOVE</button><button class="dir" id="right" data-dir="right">▶</button><button class="dir" id="down" data-dir="down">▼</button>
@@ -122,7 +122,19 @@ function saveHexProgress(){try{localStorage.setItem('finalStarsHexCleared',JSON.
 function updateStageMap(){const done=clearedStages.filter(n=>n>=1&&n<=6).length;$('mapProgress').textContent='PLANETS CLEARED '+done+' / 6';for(let n=1;n<=6;n++){const b=$('node'+stageLetters[n]),ok=stageUnlocked(n),clear=clearedStages.includes(n);b.disabled=!ok;b.classList.toggle('locked',!ok);b.classList.toggle('cleared',clear);b.querySelector('.state').textContent=clear?'CLEARED':ok?(n===1?'START':'READY'):'LOCKED';}const g=$('nodeG'),gok=stageUnlocked(7);g.style.display=gok?'flex':'none';g.disabled=!gok;$('routeCA').classList.toggle('open',clearedStages.includes(3));$('routeDA').classList.toggle('open',clearedStages.includes(4));$('routeDB').classList.toggle('open',clearedStages.includes(4));$('routeTagCA').classList.toggle('open',clearedStages.includes(3));$('routeTagD').classList.toggle('open',clearedStages.includes(4));}
 function showStageMap(){mapVisible=true;$('stageMap').style.display='flex';$('nextStageBtn').style.display='none';updateStageMap();}
 function startStageFromMap(n){if(!stageUnlocked(n))return;selectedStage=n;stage=n;mapVisible=false;$('stageMap').style.display='none';if(stageTransitionTimer!==null){clearTimeout(stageTransitionTimer);stageTransitionTimer=null;}stageWon=false;stageTransitionLock=false;dead=false;stageClear=false;elapsed=0;stageClock=5.1;enemySpawnClock=.35;stageTransition=0;stageTransitionUntil=0;boss=null;bossSpawned=false;bossDefeated=false;stageBossMusic=false;bonusTimer=0;shots=[];enemyShots=[];enemies=[];items=[];particles=[];starCoins=[];dirs={up:false,down:false,left:false,right:false};touch=null;fireHeld=false;fireClock=0;player.x=W*.18;player.y=H*.55;player.inv=2;spawnEnemy();spawnEnemy();spawnEnemy();$('stageLabel').textContent='ROUND '+round+' / 3 · STAGE '+stageLetters[stage]+' / 7';$('bossUI').style.display='none';$('bossFill').style.width='100%';$('lives').textContent='♥ '.repeat(lives);$('nextStageBtn').style.display='none';message('STAGE '+stageLetters[stage]+' · '+planetNames[stage]+'\nGO!',1600);stopBGM();try{startBGM();}catch(e){}}
-for(let n=1;n<=7;n++)$('node'+stageLetters[n]).addEventListener('click',()=>startStageFromMap(n));
+// Reliable stage selection on iPhone/iPad: handle the pointer at the map level.
+const stageMapElement=$('stageMap');
+function handleStageMapSelect(e){
+ const button=e.target.closest('.hexNode');
+ if(!button||!stageMapElement.contains(button)||button.disabled)return;
+ const n=stageLetters.indexOf(button.id.replace('node',''));
+ if(n<1||n>7)return;
+ e.preventDefault();e.stopPropagation();
+ startStageFromMap(n);
+}
+stageMapElement.addEventListener('pointerdown',handleStageMapSelect,{capture:true,passive:false});
+// Keep keyboard / accessibility activation working without double-starting touch taps.
+stageMapElement.addEventListener('click',e=>{if(e.detail===0)handleStageMapSelect(e);});
 let starCoins=[],starBalance=0;try{starBalance=Math.max(0,Number(localStorage.getItem("finalStarsStarBalance")||0)||0);}catch(e){}
 function updateStarBalance(){$('coinCount').textContent='⭐ '+String(starBalance).padStart(6,'0')+' ST';try{localStorage.setItem("finalStarsStarBalance",String(starBalance));}catch(e){}}
 function dropStarCoins(x,y,count=1,bossDrop=false){for(let i=0;i<count;i++){const roll=Math.random();let size=bossDrop?(roll<.68?1:roll<.91?2:roll<.985?3:4):1;const angle=rand(0,Math.PI*2),speed=rand(bossDrop?95:45,bossDrop?285:145);starCoins.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-rand(15,75),size,value:[0,10,50,200,1000][size],life:bossDrop?18:12,glow:bossDrop});}}
